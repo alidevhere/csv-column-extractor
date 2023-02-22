@@ -17,9 +17,6 @@ type ExtractorOptions struct {
 	// Copy only the first N rows
 	// If 0, all rows will be copied
 	MaxRows int
-	// Donot copy whole file but only given rows (by index) into destination file
-	// The first row has index 0.
-	Rows [][2]int
 }
 
 // Copies only given columns of a CSV file to a new CSV file.
@@ -66,8 +63,9 @@ func CopyCSVColumns(src, dst string, options ExtractorOptions) error {
 	for {
 
 		if options.MaxRows > 0 && rowIndex >= options.MaxRows {
-
+			break
 		}
+
 		record, err := srcReader.Read()
 
 		if err != nil {
