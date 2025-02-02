@@ -20,6 +20,7 @@ type ExtractorOptions struct {
 }
 
 type CopyResult struct {
+	DestinationFile    string
 	TotalRowsCopied    int
 	TotalColumnsCopied int
 }
@@ -84,7 +85,7 @@ func CopyCSVColumns(src, dst string, options ExtractorOptions) (CopyResult, erro
 		rowIndex++
 	}
 	dstwr.Flush()
-	return CopyResult{TotalColumnsCopied: len(options.Columns), TotalRowsCopied: rowIndex}, nil
+	return CopyResult{TotalColumnsCopied: len(options.Columns), TotalRowsCopied: rowIndex, DestinationFile: dstFile.Name()}, nil
 }
 
 func validate(totalColumns int, columns []int) error {

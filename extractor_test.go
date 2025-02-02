@@ -40,5 +40,7 @@ func TestCopyCSVColumns(t *testing.T) {
 	if result.TotalRowsCopied != 100 {
 		t.Fatalf("expected 100 rows to be copied, but copied %v", result.TotalRowsCopied)
 	}
-
+	if result.DestinationFile != "dst1.csv" {
+		t.Fatalf("expected destination file to be dst1.csv but got %v", result.DestinationFile)
+	}
 }
