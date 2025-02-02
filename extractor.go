@@ -84,7 +84,7 @@ func CopyCSVColumns(src, dst string, options ExtractorOptions) (CopyResult, erro
 		rowIndex++
 	}
 	dstwr.Flush()
-	return CopyResult{TotalColumnsCopied: len(options.Columns), TotalRowsCopied: rowIndex + 1}, nil
+	return CopyResult{TotalColumnsCopied: len(options.Columns), TotalRowsCopied: rowIndex}, nil
 }
 
 func validate(totalColumns int, columns []int) error {

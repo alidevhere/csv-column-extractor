@@ -1,6 +1,7 @@
 package csv_extractor
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"testing"
@@ -8,20 +9,36 @@ import (
 
 func TestCopyCSVColumns(t *testing.T) {
 
-	f, _ := os.Create("src.csv")
-	f.WriteString("Name,age,phone")
-	for i := 0; i < 100; i++ {
-		f.WriteString(fmt.Sprintf("name%d,age%d,1234567890%d", i, i, i))
+	f, err := os.Create("src.csv")
+	if err != nil {
+		t.Fatalf("failed to create csv file for testing")
 	}
+	defer os.Remove(f.Name())
+
+	writer := csv.NewWriter(f)
+	headers := []string{"Name", "Age", "Phone"}
+	if err := writer.Write(headers); err != nil {
+		t.Fatalf("failed to write headers to csv file for testing with err %v", err)
+	}
+
+	for i := 1; i <= 100; i++ {
+		writer.Write([]string{fmt.Sprintf("name%d", i), fmt.Sprintf("age%d", i), fmt.Sprintf("123456789%d", i)})
+	}
+	writer.Flush()
 	f.Close()
 
-	err := CopyCSVColumns("src.csv", "dst1.csv",
+	result, err := CopyCSVColumns("src.csv", "dst1.csv",
 		ExtractorOptions{SkipHeader: true, Columns: []int{0, 2}})
 	if err != nil {
-		fmt.Println(err)
+		t.Fatalf("failed to copy csv file columns with err %v", err)
 	}
+	defer os.Remove("dst1.csv")
 
-	os.Remove(f.Name())
-	os.Remove("dst1.csv")
+	if result.TotalColumnsCopied != 2 {
+		t.Fatalf("expected 2 columns to be copied, but copied %v", result.TotalColumnsCopied)
+	}
+	if result.TotalRowsCopied != 100 {
+		t.Fatalf("expected 100 rows to be copied, but copied %v", result.TotalRowsCopied)
+	}
 
 }
