@@ -109,11 +109,11 @@ func GetCsvFileDimensions(csvFileReader *csv.Reader) (CsvFileDimensions, error) 
 	return dim, nil
 }
 
-func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader bool) error {
+func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader bool) ([]CopyResult, error) {
 	// Open input file
 	inputFile, err := os.Open(inputFilePath)
 	if err != nil {
-		return fmt.Errorf("error opening input file: %w", err)
+		return []CopyResult{}, fmt.Errorf("error opening input file: %w", err)
 	}
 	defer inputFile.Close()
 
@@ -123,7 +123,7 @@ func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader
 	if hasHeader {
 		header, err = reader.Read()
 		if err != nil {
-			return fmt.Errorf("error reading header: %w", err)
+			return []CopyResult{}, fmt.Errorf("error reading header: %w", err)
 		}
 	}
 
@@ -131,6 +131,8 @@ func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader
 	var currentFile *os.File
 	var writer *csv.Writer
 	recordsWritten := 0
+	var copyResult []CopyResult
+	var singleCopyResult CopyResult
 
 	for {
 		record, err := reader.Read()
@@ -138,7 +140,7 @@ func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("error reading record: %w", err)
+			return []CopyResult{}, fmt.Errorf("error reading record: %w", err)
 		}
 
 		// Create new chunk file if needed
@@ -146,7 +148,7 @@ func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader
 			filename := fmt.Sprintf("%s_%d.csv", outputBasePath, chunkNumber)
 			currentFile, err = os.Create(filename)
 			if err != nil {
-				return fmt.Errorf("error creating chunk file: %w", err)
+				return []CopyResult{}, fmt.Errorf("error creating chunk file: %w", err)
 			}
 
 			writer = csv.NewWriter(currentFile)
@@ -154,15 +156,16 @@ func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader
 			if hasHeader {
 				if err := writer.Write(header); err != nil {
 					currentFile.Close()
-					return fmt.Errorf("error writing header: %w", err)
+					return []CopyResult{}, fmt.Errorf("error writing header: %w", err)
 				}
 			}
+			singleCopyResult.DestinationFile = filename
 		}
 
 		// Write record to current chunk
 		if err := writer.Write(record); err != nil {
 			currentFile.Close()
-			return fmt.Errorf("error writing record: %w", err)
+			return []CopyResult{}, fmt.Errorf("error writing record: %w", err)
 		}
 		recordsWritten++
 
@@ -171,11 +174,15 @@ func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader
 			writer.Flush()
 			if err := writer.Error(); err != nil {
 				currentFile.Close()
-				return fmt.Errorf("error flushing writer: %w", err)
+				return []CopyResult{}, fmt.Errorf("error flushing writer: %w", err)
 			}
+			singleCopyResult.TotalRowsCopied = recordsWritten
+			singleCopyResult.TotalColumnsCopied = len(record)
+			copyResult = append(copyResult, singleCopyResult)
 			currentFile.Close()
 			chunkNumber++
 			recordsWritten = 0
+			singleCopyResult = CopyResult{}
 		}
 	}
 
@@ -184,11 +191,11 @@ func SplitCSVFile(inputFilePath, outputBasePath string, chunkSize int, hasHeader
 		writer.Flush()
 		if err := writer.Error(); err != nil {
 			currentFile.Close()
-			return fmt.Errorf("error flushing final chunk: %w", err)
+			return []CopyResult{}, fmt.Errorf("error flushing final chunk: %w", err)
 		}
-		return currentFile.Close()
+		return copyResult, currentFile.Close()
 	}
-	return nil
+	return copyResult, nil
 }
 
 func validate(totalColumns int, columns []int) error {
